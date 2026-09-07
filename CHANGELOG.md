@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.4.3 Windows preview
+
+- Vlastní vícerozměrová ikona kamery s korunou v EXE a oznamovací oblasti.
+- Odkaz realroyalcrown.eu a verze sestavení v nabídce lišty.
+- Ruční kontrola GitHub aktualizací pro Windows a nabídka stažení novějšího ZIP balíčku.
+- Testy výběru aktualizace a načtení vložené ikony.
+
+## 0.4.2 Windows preview
+
+- Opraveno porovnání OBS a DirectShow identifikátoru kamery: dekódování OBS znaků #22 a #3A před přesným porovnáním cesty při spuštění i průběžné kontrole.
+- Regresní testy shody kamery, jiného kusu stejného modelu a chybějící identity.
+
+## 0.4.1 Windows preview
+
+- Pohyb výřezu běží nezávisle na detekci na samostatném OBS spojení s cílem 30 aktualizací/s.
+- Časově řízené vyhlazování polohy a zoomu, omezení rychlosti a potlačení drobného chvění detekce.
+- Zastavení čeká na dokončení pohybu před obnovou záběru; zachována ochrana ručních změn.
+- Test s pozastavenou detekcí naměřil přibližně 30 aktualizací/s; prošly integrační a regresní testy.
+
+## 0.4.0 Windows preview
+
+- Nový panel Obličej: lokální náhled z OBS, vestavěná Windows detekce, expozice a kontrastní ostření podle obličejové oblasti.
+- Digitální trackování přes výřez/zoom konkrétního zdroje v OBS, plynulý pohyb, maximální zoom a návrat při ztrátě obličeje.
+- Lokální OBS WebSocket 5.x s autentizací, výběr scény a zdroje, kontrola shody zdroje s USB kamerou.
+- Obnova původní transformace, záznam pro zotavení po výpadku a ochrana ručních změn v OBS.
+- Testy detektoru, algoritmů a integrační WebSocket test. Opravena obnova nulových neaktivních rozměrů bounds vracených OBS.
+
+## 0.3.0 Windows preview
+
+- Samostatný Windows x64 helper s ikonou v oznamovací oblasti, lokálním HTTP API a vloženým webovým dokem.
+- DirectShow discovery a standardní ovladače UVC kamer, výběr kamery a zapamatování výběru.
+- Windows log₂ expozice, nativní rozsahy a kroky, detekce podpory AUTO/MAN.
+- Presety oddělené pro každou kameru, atomické ukládání a hlášení chyb ovladače.
+- Sestavení bez stahování závislostí a testy API, presetů a převodů UI.
+- Stav: build a softwarové testy prošly; skutečné změny na Kiyo/C920 blokuje E_ACCESSDENIED při otevření v testovacím prostředí.
+
 ## 0.2.2 — 2026-08-14
 
 - Add Expo / Obraz / Optika dial panels with AUTO/MAN toggles.

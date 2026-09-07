@@ -1,0 +1,25 @@
+// Pure UI conversions: run with Node.js; no browser or camera access.
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const html = fs.readFileSync(path.join(__dirname, '../Sources/CameraDockHelper/Resources/index.html'), 'utf8');
+const script = html.match(/<script>([\s\S]*?)<\/script>/)[1].replace(/\s+loadState\(\);\s*$/, '');
+const node = {addEventListener() {}};
+const context = vm.createContext({document: {querySelector() {return node;}, querySelectorAll() {return [];}}});
+vm.runInContext(script, context);
+const run = expression => vm.runInContext(expression, context);
+run(`var win = {minimum:-11, maximum:-1, step:1, encoding:'log2Seconds'};
+     var mac = {minimum:1, maximum:10000, step:1};
+     var shutter = {format:'shutter'};`);
+assert.equal(run('formatValue(win, shutter, -6)'), '1/64');
+assert.equal(run('shutterValue(win, 64)'), -6);
+assert.equal(run('stepValue(win, shutter, -6, 1)'), -7);
+assert.equal(run('stepValue(win, shutter, -11, 1)'), -11);
+assert.equal(run('shutterStops(win).length'), 11);
+assert.equal(run('formatValue(mac, shutter, 167)'), '1/60');
+assert.equal(run('shutterValue(mac, 60)'), 167);
+assert.equal(run('focusDisplayOf({minimum:0, maximum:100}, 20)'), 80);
+assert.equal(run('focusDisplayOf({minimum:0, maximum:100, focusRawScale:true}, 20)'), 20);
+assert.equal(run('formatValue({minimum:-2, maximum:2, step:1, encoding:"log2Seconds"}, shutter, 2)'), '4″');
+console.log('10 UI conversion tests passed (Windows + macOS).');

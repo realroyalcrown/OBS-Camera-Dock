@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Camera Dock · Obličej</title>
+<style>
+:root{color-scheme:dark;font:12px/1.4 "Segoe UI",sans-serif;background:#16181c;color:#f3f5f7}*{box-sizing:border-box}body{margin:0;min-width:260px}header{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:1px solid #363b44}h1{font-size:14px;margin:0}a{color:#c7b5ff}main{max-width:700px;margin:auto;padding:10px;display:grid;gap:10px}section,details{background:#202329;border:1px solid #363b44;border-radius:8px;padding:10px}summary{cursor:pointer;font-weight:600}label{display:block;color:#bfc4ce}input,select,button{font:inherit;color:inherit;background:#272b32;border:1px solid #454b58;border-radius:5px;padding:6px;max-width:100%}select{width:100%}input[type=number]{width:85px}input[type=password]{width:100%}input[type=checkbox]{accent-color:#a78bfa;width:17px;height:17px;margin:0}button{cursor:pointer}button:hover:not(:disabled){border-color:#a78bfa}button:disabled{opacity:.45;cursor:default}.primary{background:#7350bc;border-color:#9474d1}.row{display:flex;gap:8px;align-items:end;flex-wrap:wrap}.row>label{flex:1}.row .port{flex:0 0 85px}.row button{flex-shrink:0}.source-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.muted{color:#9ca4af;font-size:11px;margin:5px 0 0}.feature{display:flex;gap:10px;align-items:center;padding:7px 0}.feature span{color:#f3f5f7}.feature small{display:block;color:#9ca4af}.preview{position:relative;padding:0;overflow:hidden;min-height:120px;aspect-ratio:16/9;background:#111316;display:grid;place-items:center}.preview canvas{width:100%;height:100%;object-fit:contain;position:absolute;inset:0}.preview p{color:#969fac;padding:12px;text-align:center}.status{padding:8px 10px;background:#242034;border-left:3px solid #a78bfa;overflow-wrap:anywhere}.status.error{border-color:#ff6b77;color:#ffd3d3}.actions{display:flex;gap:7px;flex-wrap:wrap}.meter{font-variant-numeric:tabular-nums;color:#bfc4ce}.settings{display:grid;grid-template-columns:1fr 1fr;gap:10px}.settings input{width:100%}[hidden]{display:none!important}@media(max-width:350px){.source-grid{grid-template-columns:1fr}.row{align-items:stretch}.row button{width:100%}}
+</style>
+</head>
+<body>
+<header><h1>Obličej</h1><a href="/">← Ruční ovládání</a></header>
+<main>
+<details id="connection" open><summary>Připojení OBS <span id="connectionStatus"></span></summary>
+<p class="muted">V OBS: Nástroje → Nastavení serveru WebSocket → Povolit. Spojení je pouze s tímto počítačem.</p>
+<form id="connectForm" class="row" style="margin-top:8px">
+<label class="port">Port<input id="port" type="number" min="1" max="65535" value="4455" required></label>
+<label>Heslo OBS<input id="password" type="password" autocomplete="off" placeholder="Heslo WebSocket serveru"></label>
+<button id="connect" type="submit">Připojit</button>
+</form><p class="muted">Heslo se neukládá; po připojení se pole vymaže.</p></details>
+<section class="source-grid">
+<label>Scéna<select id="scene" disabled><option value="">Připojte OBS</option></select></label>
+<label>Zdroj kamery<select id="source" disabled><option value="">Vyberte scénu</option></select></label>
+</section>
+<section>
+<label class="feature"><input id="exposure" type="checkbox"><span>Expozice podle obličeje<small>Jas obličeje řídí expozici a gain kamery.</small></span></label>
+<label class="feature"><input id="focus" type="checkbox"><span>Ostření na obličej<small>Hledá nejostřejší nastavení v oblasti obličeje. První zaostření může trvat několik sekund.</small></span></label>
+<label class="feature"><input id="tracking" type="checkbox"><span>Držet obličej uprostřed<small>Plynulý výřez a digitální zoom vybraného zdroje v OBS.</small></span></label>
+<div class="settings"><label>Požadovaný jas <output id="targetValue">140</output><input id="target" type="range" min="90" max="180" value="140"></label>
+<label>Maximální zoom <output id="zoomValue">1.6×</output><input id="zoom" type="range" min="1" max="3" value="1.6" step="0.1"></label></div>
+<p class="muted">Pro expozici a ostření vyberte stejnou kameru také v ručním ovládání. Vše vypnuté = pouze náhled a detekce. Nastavení se použije po stisku Spustit.</p>
+</section>
+<div class="actions"><button id="start" class="primary" disabled>Spustit</button><button id="stop" disabled>Zastavit a obnovit</button><button id="restore" hidden>Obnovit původní záběr</button></div>
+<div id="status" class="status" role="status">Připojte OBS a vyberte zdroj kamery.</div>
+<section class="preview"><p id="previewHint">Lokální náhled se objeví po spuštění analýzy.</p><canvas id="preview" width="640" height="360" hidden></canvas></section>
+<p class="muted">Náhled detekce: až 4 snímky/s. Pohyb výřezu v OBS: samostatně až 30 aktualizací/s.</p>
+<div id="metrics" class="meter"></div>
+<p class="muted">Zelený rámeček označuje sledovaný obličej pouze v tomto náhledu. Při ztrátě obličeje se expozice a ostření pozastaví; po 3 sekundách se záběr postupně rozšíří. Zavření doku analýzu nezastaví. Ruční změna ovladače nebo Zastavit obnoví původní nastavení.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let state=null, busy=false, timer=null, drawing=false, clientError=null;
+const canvas=$('preview'), ctx=canvas.getContext('2d');
+async function api(path,body){
+ const response=await fetch(path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+ const data=await response.json();if(!response.ok)throw new Error(data.error||`HTTP ${response.status}`);return data;
+}
+function fail(error){clientError=error.message||String(error);$('status').textContent=clientError;$('status').classList.add('error');}
+function options(select,items,value){
+ const signature=JSON.stringify(items);
+ if(select.dataset.signature!==signature){select.replaceChildren();for(const item of items)select.add(new Option(item.label,item.value));select.dataset.signature=signature;}
+ if(value!==undefined)select.value=String(value);
+}
+function render(s,hydrate=false){
+ state=s;
+ $('connectionStatus').textContent=s.obsConnected?'· připojeno':'';
+ $('status').textContent=clientError||s.error||s.message;$('status').classList.toggle('error',Boolean(clientError||s.error));
+ options($('scene'),s.scenes.map(x=>({value:x.name,label:x.name})),s.scene);
+ const items=s.sources.map(x=>({value:x.id,label:x.name+(x.enabled?'':' (skrytý)')}));
+ const chosen=s.running?s.options.itemId:$('source').value;
+ options($('source'),items,items.some(x=>String(x.value)===String(chosen))?chosen:items[0]?.value);
+ $('scene').disabled=!s.obsConnected||s.running||busy;$('source').disabled=!s.obsConnected||s.running||busy;
+ $('start').disabled=!s.obsConnected||!items.length||busy||s.running||s.recoveryPending;
+ $('stop').disabled=(!s.running&&!s.controlsRecoveryPending)||busy;$('restore').hidden=!s.recoveryPending;$('restore').disabled=!s.obsConnected||busy;
+ $('connect').disabled=busy||s.running;
+ for(const id of ['exposure','focus','tracking','target','zoom'])$(id).disabled=s.running||busy;
+ if(hydrate&&s.running){for(const id of ['exposure','focus','tracking'])$(id).checked=Boolean(s.options[id]);$('target').value=s.options.target;$('zoom').value=s.options.maxZoom;labels();}
+ if(!s.running){canvas.hidden=true;$('previewHint').hidden=false;$('metrics').textContent='';}
+ else{const f=s.face;$('metrics').textContent=f.found?`Obličeje: ${f.count} · jas ${Math.round(f.brightness)}/255 · ostrost ${f.sharpness.toFixed(2)}${s.focusSearching?' · ostření…':''}`:'Čekám na obličej';}
+}
+function labels(){$('targetValue').textContent=$('target').value;$('zoomValue').textContent=Number($('zoom').value).toFixed(1)+'×';}
+$('target').addEventListener('input',labels);$('zoom').addEventListener('input',labels);
+async function action(path,body){
+ busy=true;clientError=null;if(state)render(state);try{const s=await api(path,body);render(s);return s;}catch(e){fail(e);return null;}finally{busy=false;if(state){$('connect').disabled=state.running;$('stop').disabled=!state.running&&!state.controlsRecoveryPending;$('restore').disabled=!state.obsConnected;$('scene').disabled=!state.obsConnected||state.running;$('source').disabled=!state.obsConnected||state.running;for(const id of ['exposure','focus','tracking','target','zoom'])$(id).disabled=state.running;$('start').disabled=!state.obsConnected||!state.sources.length||state.running||state.recoveryPending;}}
+}
+$('connectForm').addEventListener('submit',async e=>{e.preventDefault();const password=$('password').value;$('password').value='';const s=await action('/api/face/connect',{port:Number($('port').value),password});if(s?.obsConnected)$('connection').open=false;});
+$('scene').addEventListener('change',()=>action('/api/face/sources',{scene:$('scene').value}));
+$('start').addEventListener('click',()=>action('/api/face/start',{scene:$('scene').value,itemId:Number($('source').value),exposure:$('exposure').checked,focus:$('focus').checked,tracking:$('tracking').checked,target:Number($('target').value),maxZoom:Number($('zoom').value)}));
+$('stop').addEventListener('click',()=>action('/api/face/stop',{}));
+$('restore').addEventListener('click',()=>action('/api/face/restore',{}));
+async function preview(){
+ if(drawing||!state?.running)return;drawing=true;
+ try{
+  const response=await fetch('/api/face/preview');if(!response.ok)return;
+  const blob=await response.blob();const image=await createImageBitmap(blob);
+  if(!state?.running){image.close();return;}
+  canvas.width=image.width;canvas.height=image.height;ctx.drawImage(image,0,0);image.close();
+  const f=state.face;if(f.found){ctx.strokeStyle='#38d996';ctx.lineWidth=2;ctx.strokeRect(f.x*canvas.width,f.y*canvas.height,f.width*canvas.width,f.height*canvas.height);}
+  canvas.hidden=false;$('previewHint').hidden=true;
+ }catch(e){/* A missing frame is normal during source changes. */}finally{drawing=false;}
+}
+async function poll(){
+ try{if(!busy){const first=state===null;render(await api('/api/face/state'),first);await preview();}}
+ catch(e){fail(e);}finally{timer=setTimeout(poll,250);}
+}
+poll();
+</script>
+</body>
+</html>

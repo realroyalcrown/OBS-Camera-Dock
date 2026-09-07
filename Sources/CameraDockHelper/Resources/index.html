@@ -50,6 +50,7 @@
     .brand {
       min-width: 0;
       display: flex;
+      flex-wrap: wrap;
       align-items: baseline;
       gap: 6px;
     }
@@ -74,8 +75,12 @@
       gap: 5px;
       color: var(--muted);
       font-size: 10px;
-      white-space: nowrap;
+      white-space: normal;
     }
+
+    #cameraSelect { width: 100%; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; font: inherit; }
+    #statusText { min-width: 0; overflow-wrap: anywhere; }
+    .header-actions { flex-shrink: 0; }
 
     .dot {
       width: 6px;
@@ -237,7 +242,7 @@
       gap: 4px;
     }
 
-    .tabs button {
+    .tabs button, .tabs a {
       flex: 1;
       padding: 6px 6px;
       border: 1px solid var(--line);
@@ -366,6 +371,8 @@
     }
 
     .hidden { display: none !important; }
+    .tabs a { text-align: center; text-decoration: none; }
+    .tabs a[hidden] { display: none; }
   </style>
 </head>
 <body>
@@ -373,6 +380,7 @@
     <div class="brand">
       <h1>Camera Dock</h1>
       <div id="cameraName" class="camera-name">Razer Kiyo V2 X</div>
+      <select id="cameraSelect" aria-label="Vybrat kameru" style="max-width:100%" hidden></select>
     </div>
     <div class="status-row">
       <span id="statusDot" class="dot"></span>
@@ -399,6 +407,7 @@
       <button type="button" data-panel="expo" class="active">Expo</button>
       <button type="button" data-panel="obraz">Obraz</button>
       <button type="button" data-panel="optika">Optika</button>
+      <a id="faceLink" href="/face" hidden>Obličej</a>
     </nav>
   </main>
 
@@ -475,6 +484,7 @@
     let activeDrag = null;
     let activePanel = 'expo';
     let connected = false;
+    let cameraDeviceId = null;
     let dialogMode = 'create';
 
     function escapeText(value) {
@@ -492,6 +502,9 @@
     }
 
     async function request(path, options = {}) {
+      if (options.method === 'POST' && cameraDeviceId && path !== '/api/camera' && path !== '/api/rescan') {
+        options = { ...options, body: JSON.stringify({ ...JSON.parse(options.body || '{}'), cameraDeviceId }) };
+      }
       const response = await fetch(path, {
         ...options,
         headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }
@@ -546,6 +559,13 @@
     }
 
     function shutterStops(control) {
+      if (control.encoding === 'log2Seconds') {
+        const stops = [];
+        for (let value = control.maximum; value >= control.minimum; value -= Math.max(1, control.step)) {
+          stops.push(Math.pow(2, -value));
+        }
+        return stops;
+      }
       const stops = SHUTTER_DENOMS.filter(denom => {
         const uvc = uvcFromShutter(denom);
         return uvc >= control.minimum && uvc <= control.maximum;
@@ -567,7 +587,16 @@
     }
 
     function focusDisplayOf(control, value) {
+      if (control.focusRawScale) return percentOf(control, value);
       return 100 - percentOf(control, value);
+    }
+
+    function shutterDenom(control, value) {
+      return control.encoding === 'log2Seconds' ? Math.pow(2, -value) : Math.max(1, Math.round(10000 / Math.max(1, value)));
+    }
+
+    function shutterValue(control, denom) {
+      return control.encoding === 'log2Seconds' ? Math.round(-Math.log2(denom)) : uvcFromShutter(denom);
     }
 
     function uvcFromPercent(control, percent) {
@@ -595,7 +624,7 @@
     function ratioOf(control, spec, value) {
       if (spec.format === 'shutter') {
         const stops = shutterStops(control);
-        const denom = nearest(stops, Math.max(1, Math.round(10000 / Math.max(1, value))));
+        const denom = nearest(stops, shutterDenom(control, value));
         const index = stops.indexOf(denom);
         return stops.length <= 1 ? 0 : index / (stops.length - 1);
       }
@@ -626,7 +655,7 @@
       if (spec.format === 'shutter') {
         const stops = shutterStops(control);
         const index = Math.round(t * (stops.length - 1));
-        return uvcFromShutter(stops[index]);
+        return shutterValue(control, stops[index]);
       }
       if (spec.format === 'iso') {
         const index = Math.round(t * (ISO_STOPS.length - 1));
@@ -636,7 +665,7 @@
         return uvcFromPercent(control, Math.round(t * 100));
       }
       if (spec.format === 'focus') {
-        return uvcFromPercent(control, 100 - Math.round(t * 100));
+        return uvcFromPercent(control, control.focusRawScale ? Math.round(t * 100) : 100 - Math.round(t * 100));
       }
       if (spec.format === 'kelvin') {
         const range = wbRange(control);
@@ -653,9 +682,9 @@
     function stepValue(control, spec, value, direction) {
       if (spec.format === 'shutter') {
         const stops = shutterStops(control);
-        const denom = nearest(stops, Math.max(1, Math.round(10000 / Math.max(1, value))));
+        const denom = nearest(stops, shutterDenom(control, value));
         const index = clamp(stops.indexOf(denom) + direction, 0, stops.length - 1);
-        return uvcFromShutter(stops[index]);
+        return shutterValue(control, stops[index]);
       }
       if (spec.format === 'iso') {
         const iso = isoFromGain(control, value);
@@ -666,7 +695,7 @@
         return uvcFromPercent(control, percentOf(control, value) + direction);
       }
       if (spec.format === 'focus') {
-        return uvcFromPercent(control, percentOf(control, value) - direction);
+        return uvcFromPercent(control, percentOf(control, value) + (control.focusRawScale ? direction : -direction));
       }
       if (spec.format === 'kelvin') {
         return valueFromRatio(control, spec, ratioOf(control, spec, value) + direction * 0.04);
@@ -686,8 +715,8 @@
     function formatValue(control, spec, value) {
       if (value == null) return '—';
       if (spec.format === 'shutter') {
-        const denom = nearest(shutterStops(control), Math.max(1, Math.round(10000 / Math.max(1, value))));
-        return denom === 1 ? '1″' : `1/${denom}`;
+        const denom = nearest(shutterStops(control), shutterDenom(control, value));
+        return denom <= 1 ? `${1 / denom}″` : `1/${denom}`;
       }
       if (spec.format === 'iso') return String(isoFromGain(control, value));
       if (spec.format === 'percent') return String(percentOf(control, value));
@@ -722,7 +751,7 @@
       const track = describeArc(START_DEG, START_DEG + SWEEP_DEG);
       const arc = ratio > 0.001 ? describeArc(START_DEG, end) : '';
       const arcColor = spec.format === 'kelvin' && available ? kelvinColor(value) : 'var(--accent)';
-      const mode = spec.autoId
+      const mode = spec.autoId && byId(spec.autoId)
         ? `<div class="mode-switch" data-auto="${escapeText(spec.autoId)}">
             <button type="button" data-mode="auto" class="${autoOn ? 'active' : ''}">AUTO</button>
             <button type="button" data-mode="manual" class="${autoOn ? '' : 'active'}">MAN</button>
@@ -790,11 +819,21 @@
         return;
       }
 
-      controlsElement.innerHTML = currentPanel().dials.map(dialMarkup).join('');
+      const supported = currentPanel().dials.filter(spec => byId(spec.id));
+      controlsElement.innerHTML = supported.length ? supported.map(dialMarkup).join('') : '<div class="empty">Kamera v tomto panelu nenabízí žádné ovladače.</div>';
       bindControls();
     }
 
     function render(state) {
+      document.querySelector('#faceLink').hidden = !state.faceSupported;
+      cameraDeviceId = state.deviceId || null;
+      const cameraSelect = document.querySelector('#cameraSelect');
+      cameraSelect.hidden = !Array.isArray(state.cameras);
+      if (Array.isArray(state.cameras)) {
+        cameraSelect.replaceChildren(new Option('Vyberte kameru…', ''));
+        for (const camera of state.cameras) cameraSelect.add(new Option(camera.name, camera.id));
+        cameraSelect.value = state.deviceId || '';
+      }
       controls = state.controls || [];
       presets = state.presets || presets;
       localValues.clear();
@@ -803,7 +842,7 @@
         localValues.set(control.id, control.kind === 'toggle' ? control.enabled : control.value);
       }
 
-      cameraNameElement.textContent = state.cameraName || 'Razer Kiyo V2 X';
+      cameraNameElement.textContent = state.cameraName || 'UVC kamera';
       statusTextElement.textContent = state.message;
       statusDotElement.classList.toggle('connected', connected);
       renderPanel();
@@ -905,11 +944,13 @@
 
     async function sendUpdate(id, payload) {
       clearTimeout(timers.get(id));
+      timers.delete(id);
       try {
-        await request('/api/control', {
+        const state = await request('/api/control', {
           method: 'POST',
           body: JSON.stringify({ id, ...payload })
         });
+        if (!activeDrag && timers.size === 0) render(state);
       } catch (error) {
         showError(error);
       }
@@ -985,6 +1026,15 @@
 
     document.querySelector('#rescan').addEventListener('click', async () => {
       try { render(await request('/api/rescan', { method: 'POST', body: '{}' })); }
+      catch (error) { showError(error); }
+    });
+
+    document.querySelector('#cameraSelect').addEventListener('change', async event => {
+      const id = event.target.value;
+      if (!id) return;
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear(); activeDrag = null;
+      try { render(await request('/api/camera', { method: 'POST', body: JSON.stringify({ id }) })); }
       catch (error) { showError(error); }
     });
 

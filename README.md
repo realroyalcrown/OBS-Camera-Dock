@@ -1,4 +1,20 @@
-# OBS Camera Dock pro macOS
+# OBS Camera Dock — větev Windows
+
+**Stav vydání 0.4.3:** základní ovládání **Razer Kiyo V2 X ve Windows je funkční a ověřené uživatelem**. Logitech C920, ostatní UVC kamery a automatické funkce podle obličeje (expozice, ostření, tracking) jsou experimentální a vyžadují další doladění.
+
+Větev `windows` přidává **Windows 10/11 x64 helper (0.4.3 preview)**, výběr Razer Kiyo, Logitech C920 a dalších UVC kamer, stejné webové rozhraní a presety oddělené podle kamery. Nově nabízí [funkce podle obličeje](Windows/FACE-FEATURES.md): expozici, ostření a digitální trackování v OBS.
+
+**[Návod pro Windows, sestavení a stav testování →](Windows/README.md)**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1
+```
+
+Spusťte `dist\windows\OBS Camera Dock.exe` a v OBS přidejte Custom Browser Dock s URL `http://127.0.0.1:24680/`. Základní Windows ovládání uživatel ověřil. Nové funkce podle obličeje používají lokální OBS WebSocket; stav testování je v návodu.
+
+---
+
+# Původní verze pro macOS
 
 Lokální ovládací dok pro USB UVC kamery (primárně **Razer Kiyo V2 X**) v OBS Studio. Projekt neobsahuje OBS plugin — běží jako samostatná menu-bar aplikace, která vystavuje ovládací stránku přes lokální HTTP server a komunikuje s kamerou přes UVC vrstvu odvozenou z [CameraController](https://github.com/itaybre/CameraController).
 
