@@ -6,6 +6,14 @@ Nově: **[expozice podle obličeje, ostření na obličej a digitální trackov�
 
 Samostatný helper pro Windows 10/11 x64 a OBS Custom Browser Dock. Používá systémový .NET Framework 4.8 a DirectShow rozhraní `IAMCameraControl` / `IAMVideoProcAmp`. Nepotřebuje OBS plugin, Node.js, Python ani instalaci USB ovladače. Nevytváří video stream ani capture graph.
 
+## Jednoduchý instalátor
+
+Spusťte `OBS-Camera-Dock-Windows-0.4.3-Setup.exe` a potvrďte oprávnění správce. Instalátor najde běžící OBS Studio nebo nabídne standardní složku; jinou instalaci lze vybrat ručně. Po kliknutí na Nainstalovat vytvoří `<OBS Studio>\obs-camera-dock\OBS Camera Dock.exe`.
+
+V cílové podsložce odstraní ostatní staré soubory a složky. Soubory samotného OBS a presety v uživatelském profilu zachová. Před nahrazením běžícího helperu vyžádá jeho ukončení. Cesty přes odkazy/junctions odmítne. Instalátor spusťte mimo cílovou podsložku. Po instalaci spusťte helper běžným dvojklikem; instalátor ho nespouští jako správce.
+
+Sestavení: `scripts/build-windows-installer.ps1 -Helper "dist\windows\OBS Camera Dock.exe"`. Instalátor obsahuje stejný helper 0.4.3 jako přenosný ZIP.
+
 ## Spuštění
 
 1. Spusťte `OBS Camera Dock.exe`. V oznamovací oblasti se objeví ikona aplikace; může být skrytá pod šipkou.

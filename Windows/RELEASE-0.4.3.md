@@ -10,3 +10,7 @@ Základní ovládání Razer Kiyo V2 X na Windows je funkční a ověřené uži
 Windows 10/11 x64. Rozbalte Windows ZIP a spusťte OBS Camera Dock.exe. Před aktualizací ukončete předchozí helper. Nastavení zůstává zachované.
 
 Sestavení a softwarové testy prošly. Toto je předběžné Windows vydání, nikoliv potvrzení funkčnosti všech kamer a automatických funkcí.
+
+## Volitelný instalátor
+
+Soubor OBS-Camera-Dock-Windows-0.4.3-Setup.exe nainstaluje stejný helper do obs-camera-dock v kořenové složce OBS Studio. V této podsložce ponechá pouze OBS Camera Dock.exe; ostatní starý obsah podsložky odstraní. Soubory OBS a uživatelské presety zachová. Vyžaduje oprávnění správce a před nahrazením spuštěné aplikace její ukončení.
