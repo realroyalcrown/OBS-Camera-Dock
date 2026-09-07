@@ -14,6 +14,28 @@ Spusťte `dist\windows\OBS Camera Dock.exe` a v OBS přidejte Custom Browser Doc
 
 ---
 
+## Instalace skriptem
+
+Stáhněte a rozbalte [instalační ZIP](https://github.com/realroyalcrown/OBS-Camera-Dock/releases/download/v0.4.3-windows-preview/OBS-Camera-Dock-Windows-0.4.3-install.zip), poté spusťte **install.cmd**. PowerShell skript najde OBS Studio nebo umožní vybrat jeho kořenovou složku. Do `obs-camera-dock` umístí EXE a uklidí pouze starý obsah této podsložky. OBS a uživatelské presety zachová.
+
+## Snímky aplikace
+
+| Expozice | Výběr kamery |
+| --- | --- |
+| ![Expozice](docs/screenshots/exposure.png) | ![Výběr kamery](docs/screenshots/camera-selection.png) |
+
+| Obraz | Optika |
+| --- | --- |
+| ![Obraz](docs/screenshots/image.png) | ![Optika](docs/screenshots/optics.png) |
+
+### Experimentální funkce podle obličeje
+
+![Funkce podle obličeje](docs/screenshots/face.png)
+
+### Nabídka v systémové liště
+
+![Nabídka v liště](docs/screenshots/tray-menu.png)
+
 # Původní verze pro macOS
 
 Lokální ovládací dok pro USB UVC kamery (primárně **Razer Kiyo V2 X**) v OBS Studio. Projekt neobsahuje OBS plugin — běží jako samostatná menu-bar aplikace, která vystavuje ovládací stránku přes lokální HTTP server a komunikuje s kamerou přes UVC vrstvu odvozenou z [CameraController](https://github.com/itaybre/CameraController).
