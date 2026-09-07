@@ -18,6 +18,16 @@ Spusťte `dist\windows\OBS Camera Dock.exe` a v OBS přidejte Custom Browser Doc
 
 Stáhněte a rozbalte [instalační ZIP](https://github.com/realroyalcrown/OBS-Camera-Dock/releases/download/v0.4.3-windows-preview/OBS-Camera-Dock-Windows-0.4.3-install.zip), poté spusťte **install.cmd**. PowerShell skript najde OBS Studio nebo umožní vybrat jeho kořenovou složku. Do `obs-camera-dock` umístí EXE a uklidí pouze starý obsah této podsložky. OBS a uživatelské presety zachová.
 
+## Přidání doku do OBS
+
+1. Spusťte OBS Camera Dock a v OBS otevřete **Doky → Vlastní doky prohlížeče…**.
+
+![Nabídka Doky v OBS](docs/screenshots/obs-docks-menu.png)
+
+2. Zadejte název **OBS Camera Control** a URL **http://127.0.0.1:24680/**. Klikněte na **Použít** nebo **Zavřít**.
+
+![Nastavení vlastního doku a jeho URL](docs/screenshots/obs-dock-settings.png)
+
 ## Snímky aplikace
 
 | Expozice | Výběr kamery |
