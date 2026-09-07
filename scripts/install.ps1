@@ -1,6 +1,21 @@
 ﻿param([string]$ObsRoot)
 $ErrorActionPreference = 'Stop'
 
+function Get-InstallPayload {
+    $repo = Split-Path $PSScriptRoot -Parent
+    if (Test-Path -LiteralPath (Join-Path $repo 'scripts\build-windows.ps1') -PathType Leaf) {
+        Push-Location $repo
+        try {
+            powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1 | Out-Host
+            if ($LASTEXITCODE -ne 0) { throw 'Sestavení Windows aplikace selhalo. Instalace byla zastavena.' }
+        } finally { Pop-Location }
+        $payload = Join-Path $repo 'dist\windows\OBS Camera Dock.exe'
+    } else {
+        $payload = Join-Path $PSScriptRoot 'OBS Camera Dock.exe'
+    }
+    if (-not (Test-Path -LiteralPath $payload -PathType Leaf)) { throw 'Instalační EXE nebylo nalezeno.' }
+    return $payload
+}
 function Test-ObsRoot([string]$Path) {
     return ($Path -and (Test-Path -LiteralPath (Join-Path $Path 'bin\64bit\obs64.exe') -PathType Leaf))
 }
@@ -73,6 +88,7 @@ function Install-CameraDock([string]$Root,[string]$Payload) {
 # Dot-sourcing exposes the functions for isolated tests without installing anything.
 if ($MyInvocation.InvocationName -eq '.') { return }
 try {
+    $payload = Get-InstallPayload
     if (-not $ObsRoot) { $ObsRoot = Find-ObsRoot }
     if (-not (Test-ObsRoot $ObsRoot)) { throw 'Vybraná složka neobsahuje OBS Studio.' }
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -85,7 +101,7 @@ try {
         $child = Start-Process -FilePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -Verb RunAs -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-EncodedCommand',$encoded) -Wait -PassThru
         exit $child.ExitCode
     }
-    Install-CameraDock -Root $ObsRoot -Payload (Join-Path $PSScriptRoot 'OBS Camera Dock.exe')
+    Install-CameraDock -Root $ObsRoot -Payload $payload
     Write-Host 'OBS Studio a uložené presety zůstaly zachované. Helper nyní spusťte běžným dvojklikem.'
     Read-Host 'Stiskněte Enter pro zavření' | Out-Null
     exit 0
